@@ -107,8 +107,13 @@ class Pironman5:
         from pm_auto.pm_auto.oled import OLED
         oled = OLED()
         if oled.is_ready():
-            gif_path = "pironman5/assets/mgunnp.gif"
-            oled.display_gif(gif_path)
+            gif_path = "/opt/pironman5/mgunnp.gif"
+            self.log.info(f"Attempting to display GIF: {gif_path}")
+            try:
+                oled.display_gif(gif_path)
+                self.log.info("GIF displayed successfully.")
+            except Exception as e:
+                self.log.error(f"Failed to display GIF: {e}")
         else:
             self.log.error("OLED is not ready. Cannot display GIF.")
 
