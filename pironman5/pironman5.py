@@ -102,8 +102,15 @@ class Pironman5:
         if self.pm_dashboard:
             self.pm_dashboard.start()
             self.log.info('PmDashboard started')
-        while True:
-            time.sleep(1)
+
+        # Display GIF instead of system information
+        from pm_auto.pm_auto.oled import OLED
+        oled = OLED()
+        if oled.is_ready():
+            gif_path = "pironman5/assets/mgunnp.gif"
+            oled.display_gif(gif_path)
+        else:
+            self.log.error("OLED is not ready. Cannot display GIF.")
 
     @log_error
     def stop(self):

@@ -27,9 +27,10 @@ settings = {
     # ],
 
     # - Install from pip
-    # 'pip_dependencies': [
-    #     'gpiozero',
-    # ],
+    'pip_dependencies': [
+        'gpiozero',
+        'Pillow',  # Required for OLED GIF display
+    ],
 
     # - Install python source code from git
     'python_source': {
