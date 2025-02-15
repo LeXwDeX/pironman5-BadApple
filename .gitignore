@@ -1,1 +1,13 @@
 .vscode
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# macOS folder attributes
+Icon?
+._*
+
+# macOS Thumbnails
+Thumbs.db
