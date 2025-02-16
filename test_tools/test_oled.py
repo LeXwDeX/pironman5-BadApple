@@ -1,3 +1,4 @@
+# Only On Raspberry Pi 5 OS
 # 需要进入虚拟环境 source /opt/pironman5/venv/
 import os
 import time

@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# Piranha5 RGB Fan Control Script
 # 检查是否提供了参数
 if [ -z "$1" ]; then
   echo "Usage: $0 [0|1|2|3|4]"

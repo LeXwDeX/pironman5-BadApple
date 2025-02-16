@@ -1,3 +1,5 @@
+# Only On Raspberry Pi 5 OS
+# 需要进入虚拟环境 source /opt/pironman5/venv/
 from pm_auto.fan_control import FanControl
 
 # 初始化配置

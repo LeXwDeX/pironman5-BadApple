@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Raspberry Pi 5 + Pironman5 RGB Fan Control Script
 # 检查是否提供了参数
 if [ -z "$1" ]; then
   echo "Usage: $0 [on|off]"
