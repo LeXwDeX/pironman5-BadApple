@@ -26,5 +26,11 @@ sudo python3 install.py
 
 GIF 图文件应存放在以下路径：
 `/opt/pironman5/mgunnp.gif`
-
+关闭OLED屏幕之后，可以运行test工具里的oled程序从而播放bad apple
 请确保文件已正确放置在该目录下，以便程序能够正常显示。
+
+## 备注
+
+官方操作文档：
+https://docs.sunfounder.com/projects/pironman5/en/latest/index.html
+https://docs.sunfounder.com/projects/pironman5-max/en/latest/index.html
