@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>动态半色调转换器</title>
+    <style>
+        body { margin: 20px; font-family: Arial; }
+        canvas { border: 1px solid #ccc; margin-top: 10px; }
+        .controls { margin: 10px 0; }
+        label { display: inline-block; width: 120px; }
+        input[type="range"] { width: 200px; vertical-align: middle; }
+    </style>
+</head>
+<body>
+    <input type="file" id="fileInput" accept="image/gif">
+    <div class="controls">
+        <div><label>网格大小: </label><input type="range" id="gridSize" min="4" max="50" value="10"></div>
+        <div><label>亮度调整: </label><input type="range" id="brightness" min="0" max="255" value="128"></div>
+        <div><label>帧率控制: </label><input type="range" id="fps" min="1" max="60" value="15"></div>
+    </div>
+    <canvas id="outputCanvas"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js"></script>
+<script>
+const fileInput = document.getElementById('fileInput');
+const outputCanvas = document.getElementById('outputCanvas');
+const ctx = outputCanvas.getContext('2d');
+
+let gifFrames = [];
+let currentFrame = 0;
+let lastFrameTime = 0;
+let gifDimensions = { width: 0, height: 0 };
+
+const params = {
+    gridSize: 10,
+    brightness: 128,
+    fps: 15
+};
+
+// 控件事件监听
+document.getElementById('gridSize').addEventListener('input', e => params.gridSize = +e.target.value);
+document.getElementById('brightness').addEventListener('input', e => params.brightness = +e.target.value);
+document.getElementById('fps').addEventListener('input', e => params.fps = +e.target.value);
+
+
+// 新增帧合成器
+class GIFProcessor {
+    constructor() {
+        this.mainCanvas = document.createElement('canvas');
+        this.mainCtx = this.mainCanvas.getContext('2d');
+        this.currentFrame = null;
+    }
+
+    init(width, height) {
+        this.mainCanvas.width = width;
+        this.mainCanvas.height = height;
+        this.mainCtx.clearRect(0, 0, width, height);
+    }
+
+    processFrame(frameInfo, imageData) {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = this.mainCanvas.width;
+    tempCanvas.height = this.mainCanvas.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // 应用前帧处理
+    switch(frameInfo.disposal) {
+        case 1: // 保留当前帧
+            tempCtx.drawImage(this.mainCanvas, 0, 0);
+            break;
+        case 2: // 恢复背景
+            tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+            break;
+        default: // 其他情况保持画布不变
+            tempCtx.drawImage(this.mainCanvas, 0, 0);
+    }
+
+    // 修复：使用完整画布尺寸创建ImageData
+    const imgData = new ImageData(
+        new Uint8ClampedArray(imageData),
+        this.mainCanvas.width,  // 使用完整宽度
+        this.mainCanvas.height   // 使用完整高度
+    );
+    
+    // 创建临时画布绘制完整帧数据
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = this.mainCanvas.width;
+    frameCanvas.height = this.mainCanvas.height;
+    const frameCtx = frameCanvas.getContext('2d');
+    frameCtx.putImageData(imgData, 0, 0);
+
+    // 仅绘制有效区域
+    tempCtx.drawImage(
+        frameCanvas,
+        frameInfo.x, 
+        frameInfo.y,
+        frameInfo.width,
+        frameInfo.height,
+        frameInfo.x,
+        frameInfo.y,
+        frameInfo.width,
+        frameInfo.height
+    );
+
+    // 保存处理后的画布
+    this.mainCtx.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
+    this.mainCtx.drawImage(tempCanvas, 0, 0);
+    return this.mainCtx.getImageData(0, 0, this.mainCanvas.width, this.mainCanvas.height);
+}
+}
+
+// 修改文件处理部分
+const gifProcessor = new GIFProcessor();
+
+fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const gifReader = new GifReader(uint8Array);
+    
+    gifDimensions.width = gifReader.width;
+    gifDimensions.height = gifReader.height;
+    outputCanvas.width = gifReader.width;
+    outputCanvas.height = gifReader.height;
+    gifProcessor.init(gifReader.width, gifReader.height);
+
+    gifFrames = [];
+    for (let i = 0; i < gifReader.numFrames(); i++) {
+        const frameInfo = gifReader.frameInfo(i);
+        const imageData = new Uint8Array(gifReader.width * gifReader.height * 4);
+        gifReader.decodeAndBlitFrameRGBA(i, imageData);
+        
+        // 处理透明色
+        const transparency = frameInfo.transparency_index;
+        if (transparency !== undefined) {
+            for (let j = 0; j < imageData.length; j += 4) {
+                if (imageData[j+3] === 0) {
+                    imageData[j] = 255; // R
+                    imageData[j+1] = 255; // G
+                    imageData[j+2] = 255; // B
+                    imageData[j+3] = 255; // A
+                }
+            }
+        }
+
+        gifFrames.push({
+            info: frameInfo,
+            data: imageData,
+            delay: frameInfo.delay * 10
+        });
+    }
+
+    requestAnimationFrame(animate);
+});
+
+// 修改动画循环
+function animate(timestamp) {
+    if (!gifFrames.length) return;
+
+    const frameDuration = 1000 / params.fps;
+    if (timestamp - lastFrameTime >= frameDuration) {
+        lastFrameTime = timestamp;
+        
+        // 获取合成后的帧数据
+        const currentFrameData = gifFrames[currentFrame];
+        const processedData = gifProcessor.processFrame(
+            currentFrameData.info,
+            currentFrameData.data
+        );
+        
+        ctx.putImageData(processedData, 0, 0);
+        applyHalftoneEffect();
+
+        currentFrame = (currentFrame + 1) % gifFrames.length;
+    }
+    requestAnimationFrame(animate);
+}
+
+
+function applyHalftoneEffect() {
+    const imageData = ctx.getImageData(0, 0, outputCanvas.width, outputCanvas.height);
+    const data = imageData.data;
+    
+    // 转换为灰度
+    for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+        data[i] = data[i+1] = data[i+2] = gray;
+    }
+
+    ctx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+    ctx.fillStyle = 'black';
+
+    const cellSize = params.gridSize;
+    const cols = Math.ceil(outputCanvas.width / cellSize);
+    const rows = Math.ceil(outputCanvas.height / cellSize);
+
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const xPos = x * cellSize;
+            const yPos = y * cellSize;
+            const cellWidth = Math.min(cellSize, outputCanvas.width - xPos);
+            const cellHeight = Math.min(cellSize, outputCanvas.height - yPos);
+
+            let total = 0;
+            for (let cy = 0; cy < cellHeight; cy++) {
+                for (let cx = 0; cx < cellWidth; cx++) {
+                    const idx = ((yPos + cy) * outputCanvas.width + (xPos + cx)) * 4;
+                    total += data[idx];
+                }
+            }
+            const avg = total / (cellWidth * cellHeight);
+            const adjusted = Math.max(0, Math.min(255, avg + (params.brightness - 128)));
+            const radius = ((255 - adjusted) / 255) * (cellSize/2);
+
+            ctx.beginPath();
+            ctx.arc(xPos + cellSize/2, yPos + cellSize/2, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+}
+</script>
+</body>
+</html>
